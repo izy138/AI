@@ -798,50 +798,94 @@
             return { path: [], nodesExplored, algorithm: 'A*' };
         }
 
-        // Breadth-First Search Implementation
         function bfsSearch(start, goal) {
-            const startNode = new PuzzleNode(start);
+            const startString = start.join(',');
             const goalString = goal.join(',');
 
-            if (startNode.getStateString() === goalString) {
+            if (startString === goalString) {
                 return { path: [], nodesExplored: 0, algorithm: 'BFS' };
             }
 
-            const queue = [startNode];
-            const visited = new Set();
-            visited.add(startNode.getStateString());
+            // Forward search from start
+            const forwardQueue = [new PuzzleNode(start)];
+            const forwardVisited = new Map();
+            forwardVisited.set(startString, new PuzzleNode(start));
+
+            // Backward search from goal  
+            const backwardQueue = [new PuzzleNode(goal)];
+            const backwardVisited = new Map();
+            backwardVisited.set(goalString, new PuzzleNode(goal));
 
             let nodesExplored = 0;
 
-            while (queue.length > 0) {
-                const currentNode = queue.shift();
+            while (forwardQueue.length > 0 && backwardQueue.length > 0) {
+                // Alternate between forward and backward search
+                const currentQueue = forwardQueue.length <= backwardQueue.length ? forwardQueue : backwardQueue;
+                const currentVisited = currentQueue === forwardQueue ? forwardVisited : backwardVisited;
+                const otherVisited = currentQueue === forwardQueue ? backwardVisited : forwardVisited;
+
+                const currentNode = currentQueue.shift();
                 nodesExplored++;
 
-                // Get all possible moves
-                const neighbors = currentNode.getNeighbors();
+                const currentString = currentNode.getStateString();
 
-                for (const neighbor of neighbors) {
-                    const neighborString = neighbor.getStateString();
+                // Check if we've found a connection
+                if (otherVisited.has(currentString)) {
+                    // Reconstruct path by combining forward and backward paths
+                    const path = [];
 
-                    if (neighborString === goalString) {
-                        // Found solution - reconstruct path
-                        const path = [];
-                        let node = neighbor;
+                    if (currentQueue === forwardQueue) {
+                        // Forward path
+                        let node = currentNode;
+                        const forwardPath = [];
                         while (node.parent) {
-                            path.unshift({ move: node.move, state: [...node.state] });
+                            forwardPath.unshift({ move: node.move, state: [...node.state] });
                             node = node.parent;
                         }
-                        return { path, nodesExplored, algorithm: 'BFS' };
+
+                        // Backward path (reversed)
+                        node = otherVisited.get(currentString);
+                        const backwardPath = [];
+                        while (node.parent) {
+                            backwardPath.push({ move: node.move, state: [...node.state] });
+                            node = node.parent;
+                        }
+
+                        path.push(...forwardPath, ...backwardPath.reverse());
+                    } else {
+                        // Similar logic but reversed
+                        let node = otherVisited.get(currentString);
+                        const forwardPath = [];
+                        while (node.parent) {
+                            forwardPath.unshift({ move: node.move, state: [...node.state] });
+                            node = node.parent;
+                        }
+
+                        node = currentNode;
+                        const backwardPath = [];
+                        while (node.parent) {
+                            backwardPath.push({ move: node.move, state: [...node.state] });
+                            node = node.parent;
+                        }
+
+                        path.push(...forwardPath, ...backwardPath.reverse());
                     }
 
-                    if (!visited.has(neighborString)) {
-                        visited.add(neighborString);
-                        queue.push(neighbor);
+                    return { path, nodesExplored, algorithm: 'BFS' };
+                }
+
+                // Expand neighbors
+                const neighbors = currentNode.getNeighbors();
+                for (const neighbor of neighbors) {
+                    const neighborString = neighbor.getStateString();
+                    if (!currentVisited.has(neighborString)) {
+                        currentVisited.set(neighborString, neighbor);
+                        currentQueue.push(neighbor);
                     }
                 }
 
-                // Prevent memory issues with very long searches
-                if (nodesExplored > 50000) {
+                // Timeout check
+                if (nodesExplored > 100000) {
                     return { path: [], nodesExplored, algorithm: 'BFS', timeout: true };
                 }
             }
@@ -849,8 +893,7 @@
             return { path: [], nodesExplored, algorithm: 'BFS' };
         }
 
-        // Depth-First Search Implementation (with depth limit)
-        function dfsSearch(start, goal, maxDepth = 500) {
+        function dfsSearch(start, goal, maxDepth = 50) {
             const startNode = new PuzzleNode(start);
             const goalString = goal.join(',');
 
@@ -858,59 +901,71 @@
                 return { path: [], nodesExplored: 0, algorithm: 'DFS' };
             }
 
-            const visited = new Set();
-            let nodesExplored = 0;
-            let solutionPath = null;
+            let totalNodesExplored = 0;
+            const maxAttempts = 5; // Try 5 different random paths
 
-            function dfsRecursive(node, depth) {
-                if (depth >= maxDepth) return false;
-                if (solutionPath) return true; //already found solution
-                if (nodesExplored > 50000) return false;
+            for (let attempt = 0; attempt < maxAttempts; attempt++) {
+                const visited = new Set();
+                let nodesExplored = 0;
+                let solutionPath = null;
 
-                const nodeString = node.getStateString();
-                visited.add(nodeString);
-                nodesExplored++;
+                function dfsRecursive(node, depth) {
+                    if (depth >= maxDepth) return false;
+                    if (solutionPath) return true;
+                    if (nodesExplored > 5000) return false; // Limit per attempt
 
-                if (nodeString === goalString) {
-                    // Found solution - reconstruct path
-                    solutionPath = [];
-                    let current = node;
-                    while (current.parent) {
-                        solutionPath.unshift({ move: current.move, state: [...current.state] });
-                        current = current.parent;
+                    const nodeString = node.getStateString();
+                    visited.add(nodeString);
+                    nodesExplored++;
+                    totalNodesExplored++;
+
+                    if (nodeString === goalString) {
+                        solutionPath = [];
+                        let current = node;
+                        while (current.parent) {
+                            solutionPath.unshift({ move: current.move, state: [...current.state] });
+                            current = current.parent;
+                        }
+                        return true;
                     }
-                    return true;
-                }
 
-                const neighbors = node.getNeighbors();
+                    const neighbors = node.getNeighbors();
+                    // Randomize neighbor order for different attempts
+                    for (let i = neighbors.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [neighbors[i], neighbors[j]] = [neighbors[j], neighbors[i]];
+                    }
 
-                for (const neighbor of neighbors) {
-                    const neighborString = neighbor.getStateString();
-                    if (!visited.has(neighborString)) {
-                        if (nodesExplored > 50000) return false;  // Stop if too many nodes
-
-                        if (dfsRecursive(neighbor, depth + 1)) {
-                            return true;
+                    for (const neighbor of neighbors) {
+                        const neighborString = neighbor.getStateString();
+                        if (!visited.has(neighborString)) {
+                            if (dfsRecursive(neighbor, depth + 1)) {
+                                return true;
+                            }
                         }
                     }
+
+                    visited.delete(nodeString);
+                    return false;
                 }
 
-                visited.delete(nodeString); // Backtrack
-                return false;
+                if (dfsRecursive(startNode, 0)) {
+                    return {
+                        path: solutionPath,
+                        nodesExplored: totalNodesExplored,
+                        algorithm: 'DFS',
+                        depthLimited: maxDepth
+                    };
+                }
             }
 
-            dfsRecursive(startNode, 0);
-
             return {
-                path: solutionPath || [],
-                nodesExplored,
+                path: [],
+                nodesExplored: totalNodesExplored,
                 algorithm: 'DFS',
                 depthLimited: maxDepth
             };
         }
-
-
-
         // Solve puzzle using selected algorithm
         async function solvePuzzle() {
             if (isPuzzleSolved()) {
