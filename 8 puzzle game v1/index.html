@@ -17,16 +17,10 @@
 
         <div class="main-content">
             <div class="left-panel">
-                <!-- <h3 class="step-timer-stats">
-                    Timer: <span id="gameTimer"> 00:00</span>
-                </h3> -->
-                <div class="step-indicator">
-                    <span id="stepCounter">Step 1 of ${result.path.length}</span>
-                </div>
 
                 <div class="puzzle-container">
                     <div class="puzzle-grid" id="puzzleGrid">
-                        <!-- puzzle tiles -->
+                        <!-- Puzzle tiles will be generated here -->
                     </div>
                 </div>
 
@@ -44,42 +38,33 @@
                     <h3 id="algorithmTitle">Algorithm: A* with Manhattan Distance Heuristic</h3>
                     <p id="algorithmDescription">This implementation uses the A* search algorithm with Manhattan
                         distance as the heuristic function. Manhattan distance calculates the sum of horizontal and
-                        vertical distances each tile needs to move to reach the goal position.
-                    </p>
+                        vertical distances each tile needs to move to reach its goal position, providing an admissible
+                        and efficient heuristic for solving the 8-puzzle.</p>
                 </div>
 
             </div>
 
             <div class="right-panel">
 
-                <!-- <div class="algorithm-selector">
+                <div class="algorithm-selector">
                     <label for="algorithmSelect">Choose Algorithm:</label>
                     <select id="algorithmSelect">
                         <option value="astar">A* (Manhattan Distance)</option>
                         <option value="bfs">BFS (Breadth-First Search)</option>
                         <option value="dfs">DFS (Depth-First Search - Limited)</option>
                     </select>
-                </div> -->
+                </div>
 
                 <div class="controls">
                     <button class="btn shuffle" onclick="shufflePuzzle()">Shuffle Puzzle</button>
-                    <!-- <button class="btn solve" onclick="solvePuzzle()">Find Solution</button> -->
+                    <button class="btn solve" onclick="solvePuzzle()">Find Solution</button>
                     <button class="btn" onclick="compareAllAlgorithms()" id="compareBtn"
-                        style="background: #639c29;">Solve
-                        Puzzle and Compare</button>
-                    <div class="loader" id="algorithmLoader"></div>
+                        style="background: #795548;">Compare All</button>
 
-                    <!-- <button class="btn" onclick="playNextStep()" id="nextStepBtn" disabled>Next Step</button> -->
-                    <!-- <button class="btn reset" onclick="resetPuzzle()">Reset</button> -->
+                    <button class="btn" onclick="playNextStep()" id="nextStepBtn" disabled>Next Step</button>
+                    <button class="btn reset" onclick="resetPuzzle()">Reset</button>
                 </div>
 
-
-                <div class="solution-display">
-                    <h3>Solution Steps</h3>
-                    <div id="solutionSteps">
-                        <p>Click Shuffle Puzzle, and then Solve Puzzle to see the Algorithm Comparisons.</p>
-                    </div>
-                </div>
 
                 <div id="comparisonResults" class="comparison-results" style="display: none;">
                     <h3>Algorithm Comparison Results</h3>
@@ -101,7 +86,7 @@
                     </p>
                 </div>
 
-                <!-- <div class="info-panel">
+                <div class="info-panel">
                     <h3>Game Information</h3>
                     <div class="info-item">
                         <span>Moves:</span>
@@ -119,9 +104,14 @@
                         <span>Heuristic:</span>
                         <span id="heuristicDisplay">Manhattan Distance</span>
                     </div>
-                </div> -->
+                </div>
 
-
+                <div class="solution-display">
+                    <h3>Solution Steps</h3>
+                    <div id="solutionSteps">
+                        <p>Upload an image and click "Find Solution" to see the optimal path.</p>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
