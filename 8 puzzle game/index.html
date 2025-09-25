@@ -21,7 +21,7 @@
                     Timer: <span id="gameTimer"> 00:00</span>
                 </h3> -->
                 <div class="step-indicator">
-                    <span id="stepCounter">Step 1 of ${result.path.length}</span>
+                    <span id="stepCounter">Step 1</span>
                 </div>
 
                 <div class="puzzle-container">
@@ -62,6 +62,7 @@
                 </div> -->
 
                 <div class="controls">
+                    <button class="btn reset" onclick="resetButton()" style="margin-right:8px;">Reset</button>
                     <button class="btn shuffle" onclick="shufflePuzzle()">Shuffle Puzzle</button>
                     <!-- <button class="btn solve" onclick="solvePuzzle()">Find Solution</button> -->
                     <button class="btn" onclick="compareAllAlgorithms()" id="compareBtn"

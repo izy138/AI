@@ -11,6 +11,9 @@ let manualPlayStartTime = null;
 let manualPlayTimer = null;
 let gameTimer = 0;
 
+// Track if manual play is active (before solve button is clicked)
+let manualPlayActive = true;
+
 
 // Initialize puzzle grid
 function initializePuzzle() {
@@ -160,6 +163,13 @@ function handleTileClick(index) {
         [currentState[index], currentState[emptyIndex]] = [currentState[emptyIndex], currentState[index]];
         moveCount++;
         updateDisplay();
+        // Update manual step counter if manual play is active
+        if (manualPlayActive) {
+            const stepCounter = document.getElementById('stepCounter');
+            if (stepCounter) {
+                stepCounter.textContent = `Step ${moveCount}`;
+            }
+        }
     }
 }
 
@@ -205,10 +215,24 @@ function shufflePuzzle() {
     updateTimerDisplay();
     stopGameTimer();
 
+    // Enable manual play tracking after shuffle
+    manualPlayActive = true;
+
     updateDisplay();
 
     updateStatus('Puzzle shuffled! Start solving or click "Find Solution".');
     // document.getElementById('solutionSteps').innerHTML = '<p>Click "Find Solution" to see the optimal path.</p>';
+
+
+    const container = document.getElementById('solutionSteps');
+    let html = `Click Shuffle Puzzle, and then Solve Puzzle to see the Algorithm Comparisons.`;
+    container.innerHTML = html;
+    const stepCounter = document.getElementById('stepCounter');
+    if (stepCounter) stepCounter.textContent = 'Step 0';
+
+    const comparisonResults = document.getElementById('comparisonResults');
+    comparisonResults.style.display = 'none';
+
 }
 
 function startGameTimer() {
@@ -557,6 +581,52 @@ function dfsSearch(start, goal, maxDepth = 75) {
 //         }
 //     }, 100);
 // }
+// Solve puzzle function
+async function solvePuzzle() {
+    if (isPuzzleSolved()) {
+        updateStatus('Puzzle is already solved!');
+        return;
+    }
+
+    // Disable manual play tracking
+    manualPlayActive = false;
+
+    const selectedAlgorithm = document.getElementById('algorithmSelect').value;
+    updateStatus(`Solving puzzle using ${selectedAlgorithm.toUpperCase()}...`);
+
+    setTimeout(() => {
+        const startTime = performance.now();
+        let result;
+
+        switch (selectedAlgorithm) {
+            case 'astar':
+                result = aStarSearch([...currentState], goalState);
+                break;
+            case 'bfs':
+                result = bfsSearch([...currentState], goalState);
+                break;
+            case 'dfs':
+                result = dfsSearch([...currentState], goalState);
+                break;
+        }
+
+        const endTime = performance.now();
+        const solveTime = endTime - startTime;
+
+        if (result.path.length > 0) {
+            displaySolution(result, solveTime);
+            updateStatus(`${result.algorithm} found solution!`);
+
+            // Automatically start animation
+            setTimeout(() => {
+                animateSolution(result.path);
+            }, 1000);
+
+        } else {
+            updateStatus(`${result.algorithm} could not find solution`);
+        }
+    }, 100);
+}
 function playAlgorithmAnimation(algorithmName) {
     if (!comparisonResults || !savedShuffledState) {
         updateStatus('Please shuffle and compare algorithms first!');
@@ -619,118 +689,98 @@ function animateSolution(solutionPath) {
 
     nextStep();
 }
-// function displaySolution(result, solveTime) {
-//     const container = document.getElementById('solutionSteps');
+function displaySolution(result, solveTime) {
+    const container = document.getElementById('solutionSteps');
 
-//     // Store the solution globally for navigation
-//     window.currentSolution = result.path;
-//     window.currentStepIndex = 0;
+    // Store the solution globally for navigation
+    window.currentSolution = result.path;
+    window.currentStepIndex = 0;
 
-//     let html = `
-//         <div style="background: white; padding: 10px; border-radius: 5px; margin-bottom: 10px; margin-top: 10px; border-left: 4px solid #4CAF50;">
-//             <strong>${result.algorithm} Solution Found!</strong><br>
-//             Steps: ${result.path.length}<br>
-//             Nodes explored: ${result.nodesExplored}<br>
-//             Time: ${Math.round(solveTime)}ms
-//             ${result.timeout ? '<br><span style="color: #FF9800;">⚠️ Search limited to prevent timeout</span>' : ''}
-//             ${result.depthLimited ? `<br><span style="color: #FF9800;">⚠️ Depth limited to ${result.depthLimited}</span>` : ''}
-//         </div>
+    let html = `
+        <div style="background: white; padding: 10px; border-radius: 5px; margin-bottom: 10px; margin-top: 10px; border-left: 4px solid #4CAF50;">
+            <strong>${result.algorithm} Solution Found!</strong><br>
+            Steps: ${result.path.length}<br>
+            Nodes explored: ${result.nodesExplored}<br>
+            Time: ${Math.round(solveTime)}ms
+            ${result.timeout ? '<br><span style="color: #FF9800;">⚠️ Search limited to prevent timeout</span>' : ''}
+            ${result.depthLimited ? `<br><span style="color: #FF9800;">⚠️ Depth limited to ${result.depthLimited}</span>` : ''}
+        </div>
 
-//         <div class="solution-navigation">
-//             <button class="nav-btn" id="prevStepBtn" onclick="navigateStep(-1)">← Previous</button>
-//             <div class="step-indicator">
-//                 <span id="stepCounter">Step 1 of ${result.path.length}</span>
-//             </div>
-//             <button class="nav-btn" id="nextStepBtn" onclick="navigateStep(1)">Next →</button>
-//         </div>
+        <div class="current-step" id="currentStepDisplay">
+            <strong>Step 1:</strong> Move ${result.path[0]?.move || 'START'}<br>
+            <div style="font-size: 12px; margin-top: 10px; font-family: monospace;">
+                ${formatStateForDisplay(result.path[0]?.state || result.path[0]?.state)}
+            </div>
+        </div>
 
-//         <div class="current-step" id="currentStepDisplay">
-//             <strong>Step 1:</strong> Move ${result.path[0]?.move || 'START'}<br>
-//             <div style="font-size: 12px; margin-top: 10px; font-family: monospace;">
-//                 ${formatStateForDisplay(result.path[0]?.state || result.path[0]?.state)}
-//             </div>
-//         </div>
-//     `;
+        <div class="solution-navigation">
+            <button class="nav-btn" id="prevStepBtn" onclick="navigateStep(-1)">← Previous Step</button>
+            <div class="step-indicator">
+                
+            </div>
+            <button class="nav-btn" id="nextStepBtn" onclick="navigateStep(1)">Next Step →</button>
+        </div>
+    `;
 
-//     // if (result.path && result.path.length > 0) {
-//     //     html += `
-//     //     <div style="background: white; padding: 15px; margin: 10px 0; border-radius: 5px; border-left: 4px solid #2196F3;">
-//     //         <strong>Solution Steps</strong>
-//     //         <div style="margin-top: 10px;">
-//     // `;
+    container.innerHTML = html;
+    updateNavigationButtons();
+}
 
-//     //     result.path.forEach((step, index) => {
-//     //         html += `
-//     //         <div style="padding: 5px 0; border-bottom: 1px solid #eee;">
-//     //             <strong>Step ${index + 1}:</strong> Move ${step.move}
-//     //         </div>
-//     //     `;
-//     //     });
+function navigateStep(direction) {
+    if (!window.currentSolution) return;
 
-//     //     html += `
-//     //         </div>
-//     //     </div>
-//     // `;
-//     // }
+    window.currentStepIndex += direction;
 
-//     container.innerHTML = html;
-//     updateNavigationButtons();
-// }
+    // Clamp to valid range
+    if (window.currentStepIndex < 0) window.currentStepIndex = 0;
+    if (window.currentStepIndex >= window.currentSolution.length) {
+        window.currentStepIndex = window.currentSolution.length - 1;
+    }
 
-// function navigateStep(direction) {
-//     if (!window.currentSolution) return;
+    updateStepDisplay();
+    updateNavigationButtons();
+}
 
-//     window.currentStepIndex += direction;
+function updateStepDisplay() {
+    if (!window.currentSolution || !window.currentSolution[window.currentStepIndex]) return;
 
-//     // Clamp to valid range
-//     if (window.currentStepIndex < 0) window.currentStepIndex = 0;
-//     if (window.currentStepIndex >= window.currentSolution.length) {
-//         window.currentStepIndex = window.currentSolution.length - 1;
-//     }
+    const currentStep = window.currentSolution[window.currentStepIndex];
+    const stepDisplay = document.getElementById('currentStepDisplay');
+    const stepCounter = document.getElementById('stepCounter');
 
-//     updateStepDisplay();
-//     updateNavigationButtons();
-// }
+    if (stepDisplay && currentStep) {
+        stepDisplay.innerHTML = `
+            <strong>Step ${window.currentStepIndex + 1}:</strong> Move ${currentStep.move}<br>
+            <div style="font-size: 12px; margin-top: 10px; font-family: monospace;">
+                ${formatStateForDisplay(currentStep.state)}
+            </div>
+        `;
+    }
 
-// function updateStepDisplay() {
-//     if (!window.currentSolution || !window.currentSolution[window.currentStepIndex]) return;
+    if (stepCounter) {
+        stepCounter.textContent = `Step ${window.currentStepIndex + 1} of ${window.currentSolution.length}`;
+    }
 
-//     const currentStep = window.currentSolution[window.currentStepIndex];
-//     const stepDisplay = document.getElementById('currentStepDisplay');
-//     const stepCounter = document.getElementById('stepCounter');
+    // Safely update the puzzle display
+    if (currentStep && currentStep.state && currentStep.state.length === 9) {
+        currentState = [...currentStep.state];
+        updateDisplay();
+    } else {
+        console.error('Invalid step state:', currentStep);
+    }
+}
 
-//     if (stepDisplay && currentStep) {
-//         stepDisplay.innerHTML = `
-//             <strong>Step ${window.currentStepIndex + 1}:</strong> Move ${currentStep.move}<br>
-//             <div style="font-size: 12px; margin-top: 10px; font-family: monospace;">
-//                 ${formatStateForDisplay(currentStep.state)}
-//             </div>
-//         `;
-//     }
+function updateNavigationButtons() {
+    const prevBtn = document.getElementById('prevStepBtn');
+    const nextBtn = document.getElementById('nextStepBtn');
 
-//     if (stepCounter) {
-//         stepCounter.textContent = `Step ${window.currentStepIndex + 1} of ${window.currentSolution.length}`;
-//     }
-
-//     // Safely update the puzzle display
-//     if (currentStep && currentStep.state && currentStep.state.length === 9) {
-//         currentState = [...currentStep.state];
-//         updateDisplay();
-//     } else {
-//         console.error('Invalid step state:', currentStep);
-//     }
-// }
-
-// function updateNavigationButtons() {
-//     const prevBtn = document.getElementById('prevStepBtn');
-//     const nextBtn = document.getElementById('nextStepBtn');
-
-//     if (prevBtn) prevBtn.disabled = window.currentStepIndex <= 0;
-//     if (nextBtn) nextBtn.disabled = window.currentStepIndex >= window.currentSolution.length - 1;
-// }
+    if (prevBtn) prevBtn.disabled = window.currentStepIndex <= 0;
+    if (nextBtn) nextBtn.disabled = window.currentStepIndex >= window.currentSolution.length - 1;
+}
 // Compare all algorithms function
 async function compareAllAlgorithms() {
     document.getElementById('algorithmLoader').style.display = 'block';
+    document.getElementById('stepCounter').textContent = 'Puzzle Solved';
 
     if (isPuzzleSolved()) {
         updateStatus('Please shuffle the puzzle first before comparing algorithms!');
@@ -857,30 +907,11 @@ function displayComparisonResults(results) {
 
     // Show only the best algorithm's solution
     const bestResult = validResults.find(r => r.algorithm === 'A*') || validResults[0];
-    let solutionHTML = '';
-
     if (bestResult && bestResult.path && bestResult.path.length > 0) {
-        // Store for navigation
-        window.currentSolution = bestResult.path;
-        window.currentStepIndex = 0;
-
-        solutionHTML = `
-            <div style="background: white; padding: 10px; border-radius: 5px; margin-bottom: 10px; margin-top: 10px; border-left: 4px solid #4CAF50;">
-                <strong>${bestResult.algorithm} Solution Found!</strong><br>
-                Steps: ${bestResult.path.length}<br>
-                Nodes explored: ${bestResult.nodesExplored}<br>
-                Time: ${bestResult.time}ms
-            </div>
-            
-            <div class="algorithm-buttons" style="margin: 15px 0;">
-                <button class="btn" onclick="playAlgorithmAnimation('A*')" style="background: #4CAF50;">Play A* Solution</button>
-                <button class="btn" onclick="playAlgorithmAnimation('BFS')" style="background: #2196F3;">Play BFS Solution</button>
-                <button class="btn" onclick="playAlgorithmAnimation('DFS')" style="background: #FF9800;">Play DFS Solution</button>
-            </div>
-        `;
+        displaySolution(bestResult, bestResult.time);
+    } else {
+        document.getElementById('solutionSteps').innerHTML = '';
     }
-
-    document.getElementById('solutionSteps').innerHTML = solutionHTML;
 
     // Auto-play the best result, then show manual controls
     if (bestResult && bestResult.path && bestResult.path.length > 0) {
@@ -945,6 +976,18 @@ function resetPuzzle() {
     updateStatus('Puzzle reset to solved state.');
     // document.getElementById('nextStepBtn').disabled = true;
     // document.getElementById('solutionSteps').innerHTML = '<p>Upload an image and click "Find Solution" to see the optimal path.</p>';
+
+}
+
+function resetButton(){
+    currentState = [...savedShuffledState];
+    updateDisplay();
+
+    updateStatus('Returned to shuffled state. You can continue solving or click "Find Solution".');
+    manualPlayActive = true;
+    moveCount = 0;
+    const stepCounter = document.getElementById('stepCounter');
+    if (stepCounter) stepCounter.textContent = 'Step 0';
 
 }
 

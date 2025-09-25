@@ -390,7 +390,10 @@ body {
 
 .step-indicator {
   font-weight: bold;
-  font-size: 14px;
+  font-size: 18px;
+  padding-bottom: 20px;
+  border-color: green;
+  border: green;
 }
 
 .current-step {
