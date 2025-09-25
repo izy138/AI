@@ -17,16 +17,26 @@
 
         <div class="main-content">
             <div class="left-panel">
-                <!-- <h3 class="step-timer-stats">
-                    Timer: <span id="gameTimer"> 00:00</span>
-                </h3> -->
                 <div class="step-indicator">
-                    <span id="stepCounter">Step 1</span>
+                    <span id="stepCounter">Step Counter: 0</span>
                 </div>
 
                 <div class="puzzle-container">
                     <div class="puzzle-grid" id="puzzleGrid">
                         <!-- puzzle tiles -->
+                    </div>
+                </div>
+                <div class="solution-navigation" style="display: none;">
+                    <button class="nav-btn" id="prevStepBtn" onclick="navigateStep(-1)">← Previous</button>
+                    <div class="step-indicator">
+                        <span id="stepCounterNav">Step 1 of 20</span>
+                    </div>
+                    <button class="nav-btn" id="nextStepBtn" onclick="navigateStep(1)">Next →</button>
+                </div>
+
+                <div class="current-step" id="currentStepDisplay" style="display: none;">
+                    <div id="stepDetails">
+                        <!-- Step details will be updated by JavaScript -->
                     </div>
                 </div>
 
@@ -40,40 +50,19 @@
                     </button>
                 </div>
 
-                <div class="algorithm-info">
-                    <h3 id="algorithmTitle">Algorithm: A* with Manhattan Distance Heuristic</h3>
-                    <p id="algorithmDescription">This implementation uses the A* search algorithm with Manhattan
-                        distance as the heuristic function. Manhattan distance calculates the sum of horizontal and
-                        vertical distances each tile needs to move to reach the goal position.
-                    </p>
-                </div>
+
 
             </div>
 
             <div class="right-panel">
 
-                <!-- <div class="algorithm-selector">
-                    <label for="algorithmSelect">Choose Algorithm:</label>
-                    <select id="algorithmSelect">
-                        <option value="astar">A* (Manhattan Distance)</option>
-                        <option value="bfs">BFS (Breadth-First Search)</option>
-                        <option value="dfs">DFS (Depth-First Search - Limited)</option>
-                    </select>
-                </div> -->
-
                 <div class="controls">
                     <button class="btn reset" onclick="resetButton()" style="margin-right:8px;">Reset</button>
                     <button class="btn shuffle" onclick="shufflePuzzle()">Shuffle Puzzle</button>
-                    <!-- <button class="btn solve" onclick="solvePuzzle()">Find Solution</button> -->
                     <button class="btn" onclick="compareAllAlgorithms()" id="compareBtn"
-                        style="background: #639c29;">Solve
-                        Puzzle and Compare</button>
+                        style="background: #639c29;">Solve Puzzle and Compare</button>
                     <div class="loader" id="algorithmLoader"></div>
-
-                    <!-- <button class="btn" onclick="playNextStep()" id="nextStepBtn" disabled>Next Step</button> -->
-                    <!-- <button class="btn reset" onclick="resetPuzzle()">Reset</button> -->
                 </div>
-
 
                 <div class="solution-display">
                     <h3>Solution Steps</h3>
@@ -102,26 +91,13 @@
                     </p>
                 </div>
 
-                <!-- <div class="info-panel">
-                    <h3>Game Information</h3>
-                    <div class="info-item">
-                        <span>Moves:</span>
-                        <span id="moveCount">0</span>
-                    </div>
-                    <div class="info-item">
-                        <span>Status:</span>
-                        <span id="gameStatus">Ready</span>
-                    </div>
-                    <div class="info-item">
-                        <span>Algorithm:</span>
-                        <span id="currentAlgorithm">A* Search</span>
-                    </div>
-                    <div class="info-item">
-                        <span>Heuristic:</span>
-                        <span id="heuristicDisplay">Manhattan Distance</span>
-                    </div>
-                </div> -->
-
+                <div class="algorithm-info">
+                    <h3 id="algorithmTitle">Algorithm: A* with Manhattan Distance Heuristic</h3>
+                    <p id="algorithmDescription">This implementation uses the A* search algorithm with Manhattan
+                        distance as the heuristic function. Manhattan distance calculates the sum of horizontal and
+                        vertical distances each tile needs to move to reach the goal position.
+                    </p>
+                </div>
 
             </div>
         </div>

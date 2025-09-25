@@ -389,11 +389,11 @@ body {
 }
 
 .step-indicator {
+  text-align: center;
   font-weight: bold;
   font-size: 18px;
   padding-bottom: 20px;
-  border-color: green;
-  border: green;
+  width: 100%;
 }
 
 .current-step {
