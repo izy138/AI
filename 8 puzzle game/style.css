@@ -377,10 +377,13 @@ body {
   background: #2196f3;
   color: white;
   border: none;
-  padding: 10px 15px;
+  padding: 10px;
   border-radius: 5px;
   cursor: pointer;
   font-size: 16px;
+  min-width: 100px;
+  /* margin-right: 5px;
+  margin-left: 5px; */
 }
 
 .nav-btn:disabled {
@@ -389,6 +392,14 @@ body {
 }
 
 .step-indicator {
+  text-align: center;
+  font-weight: bold;
+  font-size: 18px;
+  /* padding-bottom: px; */
+  width: 100%;
+}
+
+.step-counter {
   text-align: center;
   font-weight: bold;
   font-size: 18px;
