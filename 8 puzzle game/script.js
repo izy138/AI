@@ -12,6 +12,9 @@ let comparisonResults = null;
 // Track if manual play is active (before solve button is clicked)
 let manualPlayActive = true;
 
+// Track manual move history for undo
+let manualMoveHistory = [];
+
 
 // Initialize puzzle grid
 function initializePuzzle() {
@@ -160,6 +163,12 @@ function handleTileClick(index) {
             }
         }
         // Swap tiles
+        // Save current state for undo
+        manualMoveHistory.push({
+            state: [...currentState],
+            moveCount: moveCount
+        });
+
         [currentState[index], currentState[emptyIndex]] = [currentState[emptyIndex], currentState[index]];
         moveCount++;
         updateDisplay();
@@ -171,6 +180,18 @@ function handleTileClick(index) {
                 stepCounter.textContent = `Step Counter: ${moveCount}`;
             }
         }
+    }
+}
+// Undo last manual move
+function undoLastMove() {
+    if (!manualPlayActive || manualMoveHistory.length === 0) return;
+    const last = manualMoveHistory.pop();
+    currentState = [...last.state];
+    moveCount = last.moveCount;
+    updateDisplay();
+    const stepCounter = document.getElementById('stepCounter');
+    if (stepCounter) {
+        stepCounter.textContent = `Step Counter: ${moveCount}`;
     }
 }
 // Check if move is valid
@@ -210,6 +231,9 @@ function shufflePuzzle() {
     solution = [];
     currentSolutionStep = 0;
     savedShuffledState = [...currentState]; // Save the shuffled state
+
+    // Reset manual move history
+    manualMoveHistory = [];
 
 
     // Enable manual play tracking after shuffle
@@ -857,6 +881,7 @@ function resetPuzzle() {
     moveCount = 0;
     solution = [];
     currentSolutionStep = 0;
+    manualMoveHistory = [];
     updateDisplay();
     updateStatus('Puzzle reset to solved state.');
 
@@ -869,6 +894,7 @@ function resetButton() {
     updateStatus('Returned to shuffled state. You can continue solving or click "Find Solution".');
     manualPlayActive = true;
     moveCount = 0;
+    manualMoveHistory = [];
     const stepCounter = document.getElementById('stepCounter');
     if (stepCounter) stepCounter.textContent = 'Step 0';
 
@@ -889,7 +915,7 @@ function showSuccess() {
 
     const message = document.createElement('div');
     message.className = 'success-message';
-    message.textContent = `Congratulations! Puzzle solved in ${moveCount} moves!`;
+    message.textContent = `Congratulations! You solved the puzzle!`;
 
     const container = document.querySelector('.left-panel');
     container.insertBefore(message, container.firstChild);

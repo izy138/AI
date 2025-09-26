@@ -4,14 +4,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>8-Puzzle Game</title>
+    <title>Tile Quest</title>
     <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
     <div class="container">
         <div class="header">
-            <h1>8-Puzzle Game</h1>
+            <h1>Tile Quest</h1>
             <p>Upload an image and solve the puzzle using different algorithms</p>
         </div>
 
@@ -19,6 +19,7 @@
             <div class="left-panel">
                 <div class="step-counter">
                     <span id="stepCounter">Step Counter: 0</span>
+                        <button class="btn undo" id="undoBtn" onclick="undoLastMove()" style="margin-left:8px;">Undo</button>
                 </div>
 
                 <div class="puzzle-container">
@@ -103,6 +104,12 @@
         </div>
     </div>
 
+    <footer class="footer">
+        <div class="footer-content">
+            <span>Tile Quest &copy; 2025 &mdash; Created by Isabella and Gabriel</span>
+            <span style="margin-left:20px;">Enjoy solving the 8-puzzle and mastering algorithms!</span>
+        </div>
+    </footer>
     <script src="script.js"></script>
 </body>
 
