@@ -233,8 +233,77 @@ select, input[type="range"] {
     color: #4b5563;
 }
 
+.algorithms {
+    background: #f9fafb;
+    border-radius: 8px;
+    padding: 12px;
+    margin-top: 16px;
+}
+
+.algorithms h4 {
+    margin-bottom: 10px;
+    color: #374151;
+}
+
+/* Use stacked layout for the details-based cards */
+.algorithm-card {
+    background: white;
+    padding: 10px 12px;
+    border-radius: 8px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+    color: #374151;
+    margin-bottom: 10px;
+}
+
+details.algorithm-card summary {
+    list-style: none;
+    cursor: pointer;
+    font-weight: 700;
+    color: #111827;
+    padding: 6px 8px;
+    border-radius: 6px;
+}
+
+/* Hover and focus effects for better discoverability and keyboard access */
+.algorithm-card {
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.algorithm-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.12);
+}
+
+details.algorithm-card:focus-within {
+    outline: 3px solid rgba(59,130,246,0.16); /* subtle blue focus ring */
+    outline-offset: 4px;
+}
+
+details.algorithm-card summary:focus {
+    outline: none;
+}
+
+details.algorithm-card summary:focus-visible {
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.14);
+    border-radius: 6px;
+}
+
+details.algorithm-card[open] {
+    padding-bottom: 12px;
+}
+
+details.algorithm-card .algo-full {
+    margin-top: 8px;
+    font-size: 0.9em;
+    color: #4b5563;
+    line-height: 1.4;
+}
+
 @media (max-width: 968px) {
     .main-content {
+        grid-template-columns: 1fr;
+    }
+    .algorithm-cards {
         grid-template-columns: 1fr;
     }
 }

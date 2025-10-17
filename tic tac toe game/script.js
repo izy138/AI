@@ -4,6 +4,7 @@ let gameActive = true;
 let isPaused = false;
 let moveHistory = [];
 let aiTimeout = null;
+let aiRunning = false; // controls whether AI-vs-AI auto-play is allowed to run
 
 const winningLines = [
     [0, 1, 2], [3, 4, 5], [6, 7, 8],
@@ -168,7 +169,8 @@ function makeMove(index) {
     }
 
     currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
-    document.getElementById('status').textContent = `Current Turn: ${currentPlayer}`;
+    // Update status: show 'Your Turn' when Human vs AI and it's the human's turn
+    document.getElementById('status').textContent = getStatusText();
 
     const mode = document.getElementById('gameMode').value;
     if (mode === 'human-ai') {
@@ -185,8 +187,9 @@ function makeMove(index) {
 
 function aiMove() {
     if (!gameActive || isPaused) return;
-
+    // Only proceed in AI-vs-AI mode when user started the match
     const mode = document.getElementById('gameMode').value;
+    if (mode === 'ai-ai' && !aiRunning) return;
     let algorithm;
 
     if (mode === 'human-ai') {
@@ -228,17 +231,49 @@ function updateHistoryDisplay() {
         .join('');
 }
 
+function getHumanSymbolForMode() {
+    const mode = document.getElementById('gameMode').value;
+    if (mode !== 'human-ai') return null;
+    const humanFirst = document.getElementById('playOrder').value === 'first';
+    return humanFirst ? 'X' : 'O';
+}
+
+function getStatusText() {
+    const mode = document.getElementById('gameMode').value;
+    if (mode === 'human-ai') {
+        const humanSymbol = getHumanSymbolForMode();
+        if (currentPlayer === humanSymbol) return 'Your Turn';
+        return `Current Turn: ${currentPlayer}`;
+    }
+    return `Current Turn: ${currentPlayer}`;
+}
+
 function onModeChange() {
     const mode = document.getElementById('gameMode').value;
     const humanAiSettings = document.getElementById('humanAiSettings');
     const aiAiSettings = document.getElementById('aiAiSettings');
     const pauseBtn = document.getElementById('pauseBtn');
+    const startBtn = document.getElementById('startBtn');
+    const algorithms = document.getElementById('algorithmsOverview');
 
     humanAiSettings.style.display = mode === 'human-ai' ? 'block' : 'none';
     aiAiSettings.style.display = mode === 'ai-ai' ? 'block' : 'none';
     pauseBtn.style.display = mode === 'ai-ai' ? 'flex' : 'none';
+    startBtn.style.display = mode === 'ai-ai' ? 'inline-flex' : 'none';
+    // Show algorithm overview only when not Human vs Human
+    if (algorithms) algorithms.style.display = mode === 'human-human' ? 'none' : 'block';
 
     resetGame();
+}
+
+function startAiMatch() {
+    // Start AI vs AI auto-play
+    if (!document.getElementById('aiAiSettings')) return;
+    if (!gameActive) return;
+    aiRunning = true;
+    isPaused = false;
+    document.getElementById('pauseBtn').textContent = 'Pause';
+    aiMove();
 }
 
 function togglePause() {
@@ -248,7 +283,7 @@ function togglePause() {
 
     if (!isPaused) {
         const mode = document.getElementById('gameMode').value;
-        if (mode === 'ai-ai' && gameActive) {
+        if (mode === 'ai-ai' && gameActive && aiRunning) {
             aiMove();
         }
     }
@@ -261,6 +296,7 @@ function updateSpeedLabel() {
 
 function resetGame() {
     if (aiTimeout) clearTimeout(aiTimeout);
+    aiRunning = false;
 
     board = Array(9).fill(null);
     currentPlayer = 'X';
@@ -270,7 +306,7 @@ function resetGame() {
 
     initBoard();
 
-    document.getElementById('status').textContent = 'Current Turn: X';
+    document.getElementById('status').textContent = getStatusText();
     document.getElementById('pauseBtn').textContent = 'Pause';
     updateMetrics(0, 0, 0);
     updateHistoryDisplay();
@@ -282,7 +318,8 @@ function resetGame() {
             setTimeout(aiMove, 500);
         }
     } else if (mode === 'ai-ai') {
-        setTimeout(aiMove, 500);
+        // Do not auto-start AI vs AI; wait for user to press Start
+        // startBtn remains visible for user to kick off the match
     }
 }
 
@@ -295,6 +332,9 @@ document.getElementById('algorithmO').addEventListener('change', resetGame);
 document.getElementById('speed').addEventListener('input', updateSpeedLabel);
 document.getElementById('resetBtn').addEventListener('click', resetGame);
 document.getElementById('pauseBtn').addEventListener('click', togglePause);
+document.getElementById('startBtn').addEventListener('click', startAiMatch);
 
 // Initialize the game
 initBoard();
+// Sync UI to current mode selection
+onModeChange();
