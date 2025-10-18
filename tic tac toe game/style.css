@@ -6,9 +6,9 @@
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: #4eb790;
     min-height: 100vh;
-    padding: 20px;
+    padding: 10px;
 }
 
 .container {
@@ -19,7 +19,7 @@ body {
 header {
     text-align: center;
     color: white;
-    margin-bottom: 30px;
+    margin-bottom: 10px;
 }
 
 h1 {
@@ -58,7 +58,7 @@ h1 {
     width: 100px;
     height: 100px;
     background: #f8f9fa;
-    border: 3px solid #dee2e6;
+    border: 3px solid #c3e7d6;
     border-radius: 10px;
     font-size: 2.5em;
     font-weight: bold;
@@ -70,7 +70,7 @@ h1 {
 }
 
 .cell:hover:not(.filled) {
-    background: #e9ecef;
+    background: #d4eedf;
     transform: scale(1.05);
 }
 
@@ -143,7 +143,7 @@ button:hover {
 }
 
 .metric-card.time {
-    background: #dbeafe;
+    background: #b1fed6;
 }
 
 .metric-card.nodes {
@@ -151,7 +151,7 @@ button:hover {
 }
 
 .metric-card.pruning {
-    background: #e9d5ff;
+    background: #b1fed6;
 }
 
 .metric-label {
