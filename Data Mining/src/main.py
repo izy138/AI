@@ -28,6 +28,55 @@ DEFAULT_MIN_CONFIDENCE = 0.5
 PRODUCT_BUTTON_COLUMNS = 5
 
 
+def inject_button_color() -> None:
+    """Inject CSS to set Streamlit buttons to the app's blue (`#0d6efd`)."""
+    css = """
+    <style>
+    .stButton>button {
+        background-color: #0d6efd !important;
+        background-image: none !important;
+        color: #ffffff !important;
+        border: none !important;
+        box-shadow: 0 4px 10px rgba(13,110,253,0.15) !important;
+        border-radius: 8px !important;
+    }
+    .stButton>button:hover {
+        filter: brightness(0.96) !important;
+    }
+    .stButton>button:focus {
+        outline: none !important;
+        box-shadow: 0 0 0 4px rgba(13,110,253,0.12) !important;
+    }
+    </style>
+    """
+    try:
+        st.markdown(css, unsafe_allow_html=True)
+    except Exception:
+        # If Streamlit API changes, fail silently — visual tweak only.
+        pass
+
+
+def render_decorative_header(number: int, title: str) -> None:
+        """Render a header with a decorative horizontal line above it.
+
+        Uses inline HTML/CSS so it works without relying on Streamlit internals.
+        """
+        html = f"""
+        <div style="margin-top:18px; margin-bottom:6px;">
+            <div style="height:6px; background:linear-gradient(90deg,#0d6efd,#0ea5e9); border-radius:6px; margin-bottom:10px; box-shadow:0 6px 18px rgba(13,110,253,0.12);"></div>
+            <div style="display:flex; align-items:baseline; gap:12px;">
+                <div style="font-weight:700; color:#0d6efd; font-size:20px;">{number}.</div>
+                <div style="font-size:20px; font-weight:700; color:#e6eef1; letter-spacing:0.2px;">{title}</div>
+            </div>
+        </div>
+        """
+        try:
+                st.markdown(html, unsafe_allow_html=True)
+        except Exception:
+                # Fallback to plain subheader if markdown injection fails
+                st.subheader(f"{number}. {title}")
+
+
 def initialize_state() -> None:
     """Ensure Streamlit session state contains required keys."""
     defaults = {
@@ -308,6 +357,7 @@ def render_recommendations(products: Dict[str, Product]) -> None:
 def main() -> None:
     st.set_page_config(page_title=PAGE_TITLE, layout="wide")
     initialize_state()
+    inject_button_color()
 
     products_path, sample_transactions_path = get_data_paths()
     products = load_products(products_path)
@@ -335,9 +385,12 @@ def main() -> None:
         st.divider()
         if st.button("Run Association Mining", use_container_width=True):
             run_mining(min_support=min_support, min_confidence=min_confidence)
-
-    st.subheader("1. Build Manual Transactions")
-    product_subset = product_list[:15]
+    # Decorative header and product list belong in the main content area (not the sidebar)
+    render_decorative_header(1, "Build Manual Transactions")
+    # Show only products that are listed in `products.csv` when building manual transactions.
+    # Use the full product list (loaded from the CSV) rather than any items inferred
+    # from uploaded or previous transaction data.
+    product_subset = product_list
     display_product_buttons(product_subset)
     display_current_selection(products)
 
@@ -346,11 +399,19 @@ def main() -> None:
     col_clear.button("Clear Basket", on_click=lambda: st.session_state.update({"current_selection": []}), use_container_width=True)
 
     if st.session_state["manual_transactions"]:
-        st.write("### Saved Manual Transactions")
-        st.dataframe(
-            format_transactions_display(st.session_state["manual_transactions"], products),
-            use_container_width=True,
-        )
+            # Filter saved manual transactions so only items present in `products.csv` are shown.
+            filtered_manual = []
+            for tx in st.session_state["manual_transactions"]:
+                filtered_items = [item for item in tx if item in products]
+                if filtered_items:
+                    filtered_manual.append(filtered_items)
+
+            if filtered_manual:
+                st.write("### Saved Manual Transactions")
+                st.dataframe(
+                    format_transactions_display(filtered_manual, products),
+                    use_container_width=True,
+                )
 
     st.divider()
     st.subheader("2. Import Transactions from CSV")
@@ -404,37 +465,38 @@ def main() -> None:
         disabled=not has_transactions,
     )
 
-    st.divider()
-    st.subheader("5. Association Mining Results")
-    mining_store = st.session_state.get("mining_results", {})
-    if mining_store and "metrics" in mining_store:
-        metrics_df = pd.DataFrame.from_dict(mining_store["metrics"], orient="index")
-        st.dataframe(metrics_df, use_container_width=True)
+    if has_transactions:
+        st.divider()
+        render_decorative_header(5, "Association Mining Results")
+        mining_store = st.session_state.get("mining_results", {})
+        if mining_store and "metrics" in mining_store:
+            metrics_df = pd.DataFrame.from_dict(mining_store["metrics"], orient="index")
+            st.dataframe(metrics_df, use_container_width=True)
 
-        apriori_result: FrequentItemsetResult = mining_store.get("Apriori")
-        eclat_result: FrequentItemsetResult = mining_store.get("Eclat")
-        if apriori_result and eclat_result:
-            tab_apriori, tab_eclat = st.tabs(["Apriori Itemsets", "Eclat Itemsets"])
-            with tab_apriori:
-                st.dataframe(itemsets_to_dataframe(apriori_result), use_container_width=True)
-                st.write("Association Rules")
-                st.dataframe(
-                    rules_to_dataframe(st.session_state["rules_lookup"].get("Apriori", [])),
-                    use_container_width=True,
-                )
-            with tab_eclat:
-                st.dataframe(itemsets_to_dataframe(eclat_result), use_container_width=True)
-                st.write("Association Rules")
-                st.dataframe(
-                    rules_to_dataframe(st.session_state["rules_lookup"].get("Eclat", [])),
-                    use_container_width=True,
-                )
-    else:
-        st.info("Run the mining algorithms from the sidebar to view detailed results.")
+            apriori_result: FrequentItemsetResult = mining_store.get("Apriori")
+            eclat_result: FrequentItemsetResult = mining_store.get("Eclat")
+            if apriori_result and eclat_result:
+                tab_apriori, tab_eclat = st.tabs(["Apriori Itemsets", "Eclat Itemsets"])
+                with tab_apriori:
+                    st.dataframe(itemsets_to_dataframe(apriori_result), use_container_width=True)
+                    st.write("Association Rules")
+                    st.dataframe(
+                        rules_to_dataframe(st.session_state["rules_lookup"].get("Apriori", [])),
+                        use_container_width=True,
+                    )
+                with tab_eclat:
+                    st.dataframe(itemsets_to_dataframe(eclat_result), use_container_width=True)
+                    st.write("Association Rules")
+                    st.dataframe(
+                        rules_to_dataframe(st.session_state["rules_lookup"].get("Eclat", [])),
+                        use_container_width=True,
+                    )
+        else:
+            st.info("Run the mining algorithms from the sidebar to view detailed results.")
 
-    st.divider()
-    st.subheader("6. Product Recommendations")
-    render_recommendations(products)
+        st.divider()
+        render_decorative_header(6, "Product Recommendations")
+        render_recommendations(products)
 
 
 if __name__ == "__main__":
