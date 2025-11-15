@@ -121,18 +121,23 @@ def display_current_selection(products: Dict[str, Product]) -> None:
 def format_transactions_display(transactions: List[Sequence[str]], products: Dict[str, Product]) -> pd.DataFrame:
     """Create a display-friendly dataframe for transactions."""
     rows = []
-    for index, transaction in enumerate(transactions, start=1):
+    for transaction in transactions:
         readable = [products.get(item, Product(item, item, "")).name.title() for item in transaction]
-        rows.append({"#": index, "Items": ", ".join(readable)})
-    return pd.DataFrame(rows)
+        rows.append({"Items": ", ".join(readable)})
+    df = pd.DataFrame(rows)
+    df.index = pd.Index(range(1, len(df) + 1), name="Transaction ID")
+    return df
 
 
 def run_preprocessing(products: Dict[str, Product]) -> None:
     original_transactions = (
-        st.session_state["manual_transactions"] + st.session_state["uploaded_transactions"]
+        st.session_state.get("manual_transactions", []) + st.session_state.get("uploaded_transactions", [])
     )
     if not original_transactions:
-        st.warning("Add or import transactions before running preprocessing.")
+        st.session_state["preprocessing_report"] = None
+        st.session_state["cleaned_transactions"] = None
+        st.session_state["preprocessing_error"] = "Add or import transactions before running preprocessing."
+        return
         return
 
     cleaned, report = clean_transactions(original_transactions, products)
@@ -199,9 +204,9 @@ def run_mining(min_support: float, min_confidence: float) -> None:
     apriori_runtime = (time.perf_counter() - start) * 1000
 
     mining_results["Apriori"] = {
-        "runtime_ms": round(apriori_runtime, 2),
-        "frequent_itemsets": len(apriori_result.support_counts),
-        "rules_generated": len(apriori_rules),
+        "Runtime (ms)": round(apriori_runtime, 2),
+        "Frequent Itemsets": len(apriori_result.support_counts),
+        "Rules Generated": len(apriori_rules),
     }
     rules_lookup["Apriori"] = apriori_rules
 
@@ -385,7 +390,19 @@ def main() -> None:
 
     st.divider()
     st.subheader("4. Preprocess Transactions")
-    st.button("Run Preprocessing", on_click=lambda: run_preprocessing(products), use_container_width=True)
+    # Enable preprocessing only when there are transactions (manual, uploaded, or sample)
+    has_transactions = bool(
+        st.session_state.get("manual_transactions") or st.session_state.get("uploaded_transactions")
+    )
+    if not has_transactions:
+        st.info("Add a manual transaction, load sample transactions, or upload a CSV to enable preprocessing.")
+
+    st.button(
+        "Run Preprocessing",
+        on_click=lambda: run_preprocessing(products),
+        use_container_width=True,
+        disabled=not has_transactions,
+    )
 
     st.divider()
     st.subheader("5. Association Mining Results")
