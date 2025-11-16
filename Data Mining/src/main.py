@@ -17,12 +17,13 @@ if str(ROOT_DIR) not in sys.path:
 from src.algorithms import AssociationRule, FrequentItemsetResult, generate_association_rules  # noqa: E402
 from src.algorithms.apriori import apriori  # noqa: E402
 from src.algorithms.eclat import eclat  # noqa: E402
-from src.analytics import compute_basic_stats, summarize_preprocessing  # noqa: E402
-from src.data_loader import DataLoaderError, Product, load_products, load_transactions  # noqa: E402
+from src.algorithms.closet import closet  # noqa: E402
+from src.analytics import compute_basic_stats, compute_raw_transaction_stats, summarize_preprocessing  # noqa: E402
+from src.data_loader import DataLoaderError, Product, load_products, load_transactions, normalize_item  # noqa: E402
 from src.preprocessing.cleaner import clean_transactions  # noqa: E402
 
 
-PAGE_TITLE = "Interactive Supermarket Association Explorer"
+PAGE_TITLE = "Data Mining: Interactive Supermarket"
 DEFAULT_MIN_SUPPORT = 0.2
 DEFAULT_MIN_CONFIDENCE = 0.5
 PRODUCT_BUTTON_COLUMNS = 5
@@ -102,8 +103,9 @@ def get_data_paths() -> Tuple[Path, Path]:
 
 def add_manual_item(item: str) -> None:
     selection: List[str] = st.session_state["current_selection"]
-    if item not in selection:
-        selection.append(item)
+    normalized = normalize_item(item)
+    if normalized and normalized not in selection:
+        selection.append(normalized)
 
 
 def remove_manual_item(item: str) -> None:
@@ -136,6 +138,27 @@ def parse_uploaded_transactions(dataframe: pd.DataFrame) -> List[List[str]]:
         raw_items = str(row.get("items", "") or "")
         transactions.append([part for part in raw_items.split(",")])
     return transactions
+
+
+def add_custom_items(custom_input: str) -> None:
+    """Add custom items from text input to the current selection."""
+    if not custom_input or not custom_input.strip():
+        return
+    
+    # Split by comma and normalize each item
+    items = [normalize_item(item.strip()) for item in custom_input.split(",")]
+    selection: List[str] = st.session_state["current_selection"]
+    
+    added_count = 0
+    for item in items:
+        if item and item not in selection:
+            selection.append(item)
+            added_count += 1
+    
+    if added_count > 0:
+        st.success(f"Added {added_count} item(s) to basket.")
+    elif items:
+        st.info("All items are already in the basket.")
 
 
 def display_product_buttons(products: List[Product]) -> None:
@@ -194,16 +217,6 @@ def run_preprocessing(products: Dict[str, Product]) -> None:
     st.session_state["preprocessing_report"] = report
     st.session_state["mining_results"] = {}
     st.session_state["rules_lookup"] = {}
-
-    summary = summarize_preprocessing(report)
-    st.success("Preprocessing complete.")
-    with st.expander("Preprocessing Summary", expanded=True):
-        st.subheader("Before Cleaning")
-        st.write(summary["before"])
-        st.subheader("After Cleaning")
-        st.write(summary["after"])
-
-    st.dataframe(format_transactions_display(cleaned, products), use_container_width=True)
 
 
 def itemsets_to_dataframe(result: FrequentItemsetResult) -> pd.DataFrame:
@@ -274,9 +287,25 @@ def run_mining(min_support: float, min_confidence: float) -> None:
     }
     rules_lookup["Eclat"] = eclat_rules
 
+    # CLOSET
+    start = time.perf_counter()
+    closet_result = closet(cleaned_transactions, min_support=min_support)
+    closet_rules = generate_association_rules(
+        closet_result.support_counts, closet_result.transaction_count, min_confidence
+    )
+    closet_runtime = (time.perf_counter() - start) * 1000
+
+    mining_results["CLOSET"] = {
+        "runtime_ms": round(closet_runtime, 2),
+        "frequent_itemsets": len(closet_result.support_counts),
+        "rules_generated": len(closet_rules),
+    }
+    rules_lookup["CLOSET"] = closet_rules
+
     st.session_state["mining_results"] = {
         "Apriori": apriori_result,
         "Eclat": eclat_result,
+        "CLOSET": closet_result,
         "metrics": mining_results,
     }
     st.session_state["rules_lookup"] = rules_lookup
@@ -392,6 +421,18 @@ def main() -> None:
     # from uploaded or previous transaction data.
     product_subset = product_list
     display_product_buttons(product_subset)
+    
+    # Custom item input field
+    st.write("**Or enter custom items:**")
+    custom_input = st.text_input(
+        "Enter item(s) separated by commas (e.g., 'Custom Item, Another Item')",
+        key="custom_item_input",
+        placeholder="e.g., Custom Product, Special Item",
+        label_visibility="collapsed"
+    )
+    if st.button("Add Custom Items", key="add_custom_items"):
+        add_custom_items(custom_input)
+    
     display_current_selection(products)
 
     col_add, col_clear = st.columns([1, 1])
@@ -443,9 +484,20 @@ def main() -> None:
     )
     if combined_transactions:
         stats = compute_basic_stats(combined_transactions)
-        st.metric("Transactions", stats["transaction_count"])
-        st.metric("Unique Items", stats["unique_items"])
-        st.metric("Total Items", stats["total_items"])
+        valid_products_set = set(products.keys())
+        raw_stats = compute_raw_transaction_stats(combined_transactions, valid_products_set)
+        
+        st.write("**Dataset Analysis:**")
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Total Transactions", raw_stats["total_transactions"])
+        col2.metric("Total Items", stats["total_items"])
+        col3.metric("Unique Items", stats["unique_items"])
+        
+        col4, col5, col6, col7 = st.columns(4)
+        col4.metric("Empty Transactions", raw_stats["empty_transactions"])
+        col5.metric("Single Item Transactions", raw_stats["single_item_transactions"])
+        col6.metric("Duplicate Items Found", raw_stats["duplicate_items_found"])
+        col7.metric("Invalid Items Found", raw_stats["invalid_items_found"])
     else:
         st.info("No transactions yet. Add manual data or import a CSV to continue.")
 
@@ -465,34 +517,56 @@ def main() -> None:
         disabled=not has_transactions,
     )
 
-    if has_transactions:
-        st.divider()
-        render_decorative_header(5, "Association Mining Results")
-        mining_store = st.session_state.get("mining_results", {})
-        if mining_store and "metrics" in mining_store:
-            metrics_df = pd.DataFrame.from_dict(mining_store["metrics"], orient="index")
-            st.dataframe(metrics_df, use_container_width=True)
+    # Display preprocessing results if available
+    if st.session_state.get("preprocessing_report") is not None:
+        cleaned_transactions = st.session_state.get("cleaned_transactions")
+        if cleaned_transactions:
+            report = st.session_state["preprocessing_report"]
+            summary = summarize_preprocessing(report)
+            st.success("Preprocessing complete.")
+            with st.expander("Preprocessing Summary", expanded=True):
+                st.subheader("Before Cleaning")
+                st.write(summary["before"])
+                st.subheader("After Cleaning")
+                st.write(summary["after"])
 
-            apriori_result: FrequentItemsetResult = mining_store.get("Apriori")
-            eclat_result: FrequentItemsetResult = mining_store.get("Eclat")
-            if apriori_result and eclat_result:
-                tab_apriori, tab_eclat = st.tabs(["Apriori Itemsets", "Eclat Itemsets"])
-                with tab_apriori:
-                    st.dataframe(itemsets_to_dataframe(apriori_result), use_container_width=True)
-                    st.write("Association Rules")
-                    st.dataframe(
-                        rules_to_dataframe(st.session_state["rules_lookup"].get("Apriori", [])),
-                        use_container_width=True,
-                    )
-                with tab_eclat:
-                    st.dataframe(itemsets_to_dataframe(eclat_result), use_container_width=True)
-                    st.write("Association Rules")
-                    st.dataframe(
-                        rules_to_dataframe(st.session_state["rules_lookup"].get("Eclat", [])),
-                        use_container_width=True,
-                    )
-        else:
-            st.info("Run the mining algorithms from the sidebar to view detailed results.")
+            st.dataframe(format_transactions_display(cleaned_transactions, products), use_container_width=True)
+
+    st.divider()
+    st.subheader("5. Association Mining Results")
+    mining_store = st.session_state.get("mining_results", {})
+    if mining_store and "metrics" in mining_store:
+        metrics_df = pd.DataFrame.from_dict(mining_store["metrics"], orient="index")
+        st.dataframe(metrics_df, use_container_width=True)
+
+        apriori_result: FrequentItemsetResult = mining_store.get("Apriori")
+        eclat_result: FrequentItemsetResult = mining_store.get("Eclat")
+        closet_result: FrequentItemsetResult = mining_store.get("CLOSET")
+        if apriori_result and eclat_result and closet_result:
+            tab_apriori, tab_eclat, tab_closet = st.tabs(["Apriori Itemsets", "Eclat Itemsets", "CLOSET Itemsets"])
+            with tab_apriori:
+                st.dataframe(itemsets_to_dataframe(apriori_result), use_container_width=True)
+                st.write("Association Rules")
+                st.dataframe(
+                    rules_to_dataframe(st.session_state["rules_lookup"].get("Apriori", [])),
+                    use_container_width=True,
+                )
+            with tab_eclat:
+                st.dataframe(itemsets_to_dataframe(eclat_result), use_container_width=True)
+                st.write("Association Rules")
+                st.dataframe(
+                    rules_to_dataframe(st.session_state["rules_lookup"].get("Eclat", [])),
+                    use_container_width=True,
+                )
+            with tab_closet:
+                st.dataframe(itemsets_to_dataframe(closet_result), use_container_width=True)
+                st.write("Association Rules")
+                st.dataframe(
+                    rules_to_dataframe(st.session_state["rules_lookup"].get("CLOSET", [])),
+                    use_container_width=True,
+                )
+    else:
+        st.info("Run the mining algorithms from the sidebar to view detailed results.")
 
         st.divider()
         render_decorative_header(6, "Product Recommendations")
