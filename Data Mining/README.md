@@ -1,43 +1,9 @@
-Project Game Plan
-Tech Stack: Recommend Python + Streamlit for a fast interactive UI with built-in CSV upload, tables, and tuned for data apps. Keeps setup simple (pip install -r requirements.txt) and runs locally.
-Proposed Structure
-src/ with main.py (Streamlit UI), algorithms/ (apriori.py, eclat.py), preprocessing/ (cleaner.py), data_loader.py, analytics.py.
-data/ for sample CSVs (already there).
-requirements.txt with Streamlit, pandas, numpy.
-README.md updated per template; REPORT.pdf later.
-UI Flow (Streamlit)
-Sidebar: thresholds (min_support, min_confidence), data status.
-Main: product buttons to build manual transaction, transaction list table, CSV upload.
-After cleaning: show before/after stats with expanders.
-Mining results: tabs for Apriori, Eclat, comparison metrics table, chart (bonus).
-Recommendation panel: dropdown selects product, show associated items with confidence bar charts and plain-language suggestions.
-Preprocessing Pipeline
-Load CSV → standardize items (case, whitespace).
-Validate against products.csv; drop invalid items and track metrics.
-Remove empty/single-item transactions, drop duplicates within transactions.
-Return cleaned transactions + report dict for display and logging.
-Algorithms
-Implement Apriori (level-wise) and Eclat (recursive TID-set intersection) from scratch using pandas lists/sets.
-Collect frequent itemsets, derive rules meeting thresholds.
-Measure runtime (use time.perf_counter); optionally estimate memory via sys.getsizeof.
-Output & Recommendations
-Convert rules to human-readable statements.
-For recommendation view: filter rules where selected item in antecedent; show consequent items with confidence/support as percentages and intensity labels (Strong/Moderate/etc).
-Next Steps
-Scaffold folders/files and requirements.
-Implement preprocessing module with report.
-Code Apriori and Eclat modules + shared rule extraction.
-Build Streamlit UI wiring manual entry, CSV import, preprocessing, mining, recommendations.
-Add comparison metrics visualization, polish UX, handle errors.
-Update README using template; later draft REPORT.pdf with pseudocode, evaluation.
-
-
 ### Interactive Supermarket Simulation with Association Rule Mining
 
 #### Author Information
 
-- **Name**: _Fill in_
-- **Student ID**: _Fill in_
+- **Name**: Isabella Correa, Gabriel Colonna
+- **Student ID**: 6043518, 
 - **Course**: CAI 4002 - Artificial Intelligence
 - **Semester**: Fall 2025
 
@@ -53,7 +19,7 @@ An interactive Streamlit application that simulates a supermarket shopping exper
 
 - **Language**: Python 3.10+
 - **Key Libraries**: Streamlit, pandas, numpy
-- **UI Framework**: Streamlit (web dashboard)
+- **UI Framework**: Streamlit
 
 
 
@@ -61,12 +27,12 @@ An interactive Streamlit application that simulates a supermarket shopping exper
 
 ##### Prerequisites
 - Python 3.10 or newer
-- pip (latest version recommended)
+- pip 
 
 ##### Setup
 ```bash
 # Clone or extract project
-cd /path/to/assignment_data_mining
+cd /path/to/Data-Mining
 
 # Install dependencies
 pip install -r requirements.txt
@@ -82,7 +48,7 @@ streamlit run src/main.py
 ##### 1. Load Data
 - **Manual Entry**: Click items to create transactions
 - **Import CSV**: Use "Import" button to load `sample_transactions.csv`
-- **Sample Dataset**: Use "Load Sample Transactions" for the bundled file
+- **Sample Dataset**: Use "Load Sample Transactions" to load sample.
 
 ##### 2. Preprocess Data
 - Click "Run Preprocessing"
@@ -103,7 +69,7 @@ streamlit run src/main.py
 #### Algorithm Implementation
 
 ##### Apriori
-Level-wise breadth-first search using horizontal transactions. Candidate generation merges frequent (k-1)-itemsets while pruning any candidate with infrequent subsets. Support counts are tracked in a dictionary of `frozenset -> count`, and qualifying itemsets feed into rule generation.
+Apriori is a level-wise breadth-first search using horizontal transactions. It merges frequent itemsets while pruning those with infrequent subsets. Support counts are trackedm and qualifying itemsets feed into rule generation.
 - Data structure: dictionary mapping itemset to support count
 - Candidate generation: join on frequent (k-1)-itemsets with subset pruning
 - Pruning strategy: minimum support count derived from user-defined threshold
@@ -113,6 +79,12 @@ Depth-first search with a vertical transaction-id representation. Each item main
 - Data structure: dictionary mapping item -> set of transaction IDs
 - Search strategy: recursive depth-first exploration
 - Intersection method: Python set intersections for efficient support counting
+
+##### CLOSET
+Mines closed frequent itemsets using a two-phase approach: first discover all frequent itemsets via depth-first TID-set intersection (similar to Eclat), then filter to closed itemsets by checking that no proper superset has the same support count. Closed itemsets provide a compact representation without information loss.
+- Data structure: dictionary mapping item -> set of transaction IDs (TID-sets)
+- Mining approach: two-phase process - mine all frequent itemsets, then filter to closed itemsets only
+- Closure checking: for each itemset, verify no superset exists with identical support count using subset/superset relationship checks
 
 
 
@@ -139,7 +111,8 @@ project-root/
 │   ├── algorithms/
 │   │   ├── __init__.py
 │   │   ├── apriori.py
-│   │   └── eclat.py
+│   │   ├── eclat.py
+│   │   └── closet.py
 │   ├── preprocessing/
 │   │   └── cleaner.py
 │   ├── analytics.py
