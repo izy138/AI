@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sys
 import time
-from dataclasses import asdict
+from dataclasses import asdict, fields
 from io import StringIO
 from pathlib import Path
 from typing import Dict, List, Sequence, Tuple
@@ -248,6 +248,41 @@ def rules_to_dataframe(rules: List[AssociationRule]) -> pd.DataFrame:
     return pd.DataFrame(records)
 
 
+def _get_size_mb(obj: object) -> float:
+    """Recursively calculate the size of an object in MB."""
+    def _get_size(obj: object, seen: set) -> int:
+        obj_id = id(obj)
+        if obj_id in seen:
+            return 0
+        seen.add(obj_id)
+        size = sys.getsizeof(obj)
+        
+        if isinstance(obj, dict):
+            size += sum(_get_size(k, seen) + _get_size(v, seen) for k, v in obj.items())
+        elif isinstance(obj, (list, tuple)):
+            size += sum(_get_size(item, seen) for item in obj)
+        elif isinstance(obj, (set, frozenset)):
+            size += sum(_get_size(item, seen) for item in obj)
+        elif isinstance(obj, str):
+            # Strings are already counted in sys.getsizeof
+            pass
+        elif hasattr(type(obj), '__dataclass_fields__'):
+            # Handle dataclasses (including those with slots=True) - check this first
+            for field in fields(obj):
+                field_value = getattr(obj, field.name)
+                size += _get_size(field_value, seen)
+        elif hasattr(obj, '__dict__'):
+            # Regular class with __dict__
+            size += _get_size(obj.__dict__, seen)
+        elif hasattr(obj, '__slots__'):
+            # Class with __slots__ (non-dataclass)
+            for slot in obj.__slots__:
+                if hasattr(obj, slot):
+                    size += _get_size(getattr(obj, slot), seen)
+        return size
+    return _get_size(obj, set()) / 1024 / 1024
+
+
 def run_mining(min_support: float, min_confidence: float) -> None:
     cleaned_transactions: List[List[str]] | None = st.session_state["cleaned_transactions"]
     if not cleaned_transactions:
@@ -264,9 +299,12 @@ def run_mining(min_support: float, min_confidence: float) -> None:
         apriori_result.support_counts, apriori_result.transaction_count, min_confidence
     )
     apriori_runtime = (time.perf_counter() - start) * 1000
+    # Calculate memory footprint of results
+    apriori_memory_mb = _get_size_mb(apriori_result) + _get_size_mb(apriori_rules)
 
     mining_results["Apriori"] = {
         "Runtime (ms)": round(apriori_runtime, 2),
+        "Memory (MB)": round(apriori_memory_mb, 2),
         "Frequent Itemsets": len(apriori_result.support_counts),
         "Rules Generated": len(apriori_rules),
     }
@@ -279,11 +317,13 @@ def run_mining(min_support: float, min_confidence: float) -> None:
         eclat_result.support_counts, eclat_result.transaction_count, min_confidence
     )
     eclat_runtime = (time.perf_counter() - start) * 1000
+    eclat_memory_mb = _get_size_mb(eclat_result) + _get_size_mb(eclat_rules)
 
     mining_results["Eclat"] = {
-        "runtime_ms": round(eclat_runtime, 2),
-        "frequent_itemsets": len(eclat_result.support_counts),
-        "rules_generated": len(eclat_rules),
+        "Runtime (ms)": round(eclat_runtime, 2),
+        "Memory (MB)": round(eclat_memory_mb, 2),
+        "Frequent Itemsets": len(eclat_result.support_counts),
+        "Rules Generated": len(eclat_rules),
     }
     rules_lookup["Eclat"] = eclat_rules
 
@@ -294,11 +334,13 @@ def run_mining(min_support: float, min_confidence: float) -> None:
         closet_result.support_counts, closet_result.transaction_count, min_confidence
     )
     closet_runtime = (time.perf_counter() - start) * 1000
+    closet_memory_mb = _get_size_mb(closet_result) + _get_size_mb(closet_rules)
 
     mining_results["CLOSET"] = {
-        "runtime_ms": round(closet_runtime, 2),
-        "frequent_itemsets": len(closet_result.support_counts),
-        "rules_generated": len(closet_rules),
+        "Runtime (ms)": round(closet_runtime, 2),
+        "Memory (MB)": round(closet_memory_mb, 2),
+        "Frequent Itemsets": len(closet_result.support_counts),
+        "Rules Generated": len(closet_rules),
     }
     rules_lookup["CLOSET"] = closet_rules
 
@@ -568,9 +610,9 @@ def main() -> None:
     else:
         st.info("Run the mining algorithms from the sidebar to view detailed results.")
 
-        st.divider()
-        render_decorative_header(6, "Product Recommendations")
-        render_recommendations(products)
+    st.divider()
+    st.subheader("6. Product Recommendations")
+    render_recommendations(products)
 
 
 if __name__ == "__main__":
