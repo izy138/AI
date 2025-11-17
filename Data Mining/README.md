@@ -47,7 +47,7 @@ This program is an exercise in data mining association algorithms. It uses Strea
 ##### Setup
 ```bash
 # Clone or extract project
-cd /path/to/Data-Mining
+cd "/path/to/Data Mining"
 
 
 # Install dependencies
@@ -115,7 +115,7 @@ Eclat is depth first search with vertical transaction representation. Each item 
 
 
 ##### CLOSET
-Mines closed frequent itemsets using a two-phase approach: first discover all frequent itemsets via depth-first TID-set intersection (similar to Eclat), then filter to closed itemsets by checking that no proper superset has the same support count. Closed itemsets provide a compact representation without information loss.
+Closet algorithm finds frequent itemset by first finding all itemsets using depth-first id intersections similar to the Eclat algorithm. It uses recursive search to find all frequent itemsets, then it filters those itemsets by checking that no superset has the same support count. 
 
 
 - Data structure: dictionary mapping item -> set of transaction IDs (TID-sets)
