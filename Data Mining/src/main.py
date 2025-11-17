@@ -96,8 +96,8 @@ def initialize_state() -> None:
 
 def get_data_paths() -> Tuple[Path, Path]:
     """Return paths to the bundled data files."""
-    products_path = ROOT_DIR / "products.csv"
-    transactions_path = ROOT_DIR / "sample_transactions.csv"
+    products_path = ROOT_DIR / "data" / "products.csv"
+    transactions_path = ROOT_DIR / "data" / "sample_transactions.csv"
     return products_path, transactions_path
 
 
