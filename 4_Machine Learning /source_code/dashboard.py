@@ -387,9 +387,9 @@ elif page == "🎯 Clustering Analysis":
         def get_cluster_color(cluster_name):
             """Get color for cluster based on its name"""
             if "Budget" in cluster_name:
-                return '#45B7D1'  # Blue (as requested)
+                return '#45B7D1'  # Blue 
             elif "Premium Low-Volume" in cluster_name:
-                return '#fccf03'  # Orange-yellow (requested)
+                return '#fccf03'  # Orange-yellow 
             elif "Premium High-Volume" in cluster_name:
                 return '#9B59B6'  # Purple
             elif "Steady" in cluster_name:

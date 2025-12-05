@@ -9,5 +9,5 @@ pip install -r requirements.txt
 Start ui:
 streamlit run dashboard.py
 
-deactivate virtual environment when ur done:
+deactivate virtual environment:
 deactivate
