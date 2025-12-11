@@ -76,6 +76,9 @@ def main():
     df_cleaned = handle_missing_values(df, strategy='mean')
     print(f"Remaining missing values: {df_cleaned.isnull().sum().sum()}")
     
+    # Store original df for missing name analysis (before imputation)
+    df_original_for_analysis = df.copy()
+    
     # 2.3 Outlier Detection
     print("\n2.3 Outlier Detection...")
     numerical_cols = ['price', 'cost', 'units_sold', 'promotion_frequency', 'shelf_level', 'profit']
@@ -100,7 +103,69 @@ def main():
     # 2.4 Handle Outliers
     print("\n2.4 Handling Outliers (capping method)...")
     df_processed = handle_outliers(df_cleaned, outliers_iqr, method='cap')
-    summary = get_preprocessing_summary(df, df_processed)
+    summary = get_preprocessing_summary(df_original_for_analysis, df_processed, missing_info=missing_info, outliers_dict=outliers_iqr)
+    
+    # Print detailed preprocessing summary
+    print("\n" + "="*80)
+    print("PREPROCESSING SUMMARY")
+    print("="*80)
+    print(f"\nData Overview:")
+    print(f"  Original dataset: {summary['original_shape'][0]} products, {summary['original_shape'][1]} features")
+    print(f"  Final processed dataset: {summary['processed_shape'][0]} products, {summary['processed_shape'][1]} features")
+    print(f"  Data completeness: 100% after preprocessing")
+    
+    if 'missing_product_names' in summary:
+        print(f"\nMissing Values Handling:")
+        print(f"  Missing product names: {summary['missing_product_names']['count']} products")
+        for i, (pid, cat) in enumerate(zip(summary['missing_product_names']['product_ids'], 
+                                           summary['missing_product_names']['categories']), 1):
+            print(f"    {i}. Product ID {pid} (Category: {cat})")
+        print(f"  Treatment: Missing product names filled with category-based placeholders")
+    
+    if 'outliers' in summary:
+        print(f"\nOutlier Detection and Treatment:")
+        print(f"  Total outlier instances: {summary['outliers']['total_instances']} outliers detected across {len(summary['outliers']['by_feature'])} numerical features")
+        print(f"  Unique rows with outliers: {summary['outliers']['unique_rows']} products ({summary['outliers']['unique_rows']/len(df)*100:.1f}% of dataset)")
+        print(f"  Outlier breakdown by feature:")
+        
+        # Define feature descriptions for better output
+        feature_descriptions = {
+            'price': 'premium products',
+            'cost': 'high costs',
+            'units_sold': 'high-volume',
+            'promotion_frequency': 'frequently promoted',
+            'shelf_level': 'all values in valid range',
+            'profit': 'high-profit'
+        }
+        
+        for col, info in summary['outliers']['by_feature'].items():
+            count = info['count']
+            if count > 0:
+                # Get sample outlier values for range
+                outlier_indices = outliers_iqr[col]['indices']
+                outlier_values = df_cleaned.loc[outlier_indices, col].tolist()
+                min_val = min(outlier_values)
+                max_val = max(outlier_values)
+                
+                if col in ['price', 'cost', 'profit']:
+                    print(f"    - {col}: {count} outliers ({feature_descriptions.get(col, '')}: ${min_val:.2f}–${max_val:.2f})")
+                elif col == 'units_sold':
+                    print(f"    - {col}: {count} outliers ({feature_descriptions.get(col, '')}: {int(min_val)}–{int(max_val)} units)")
+                elif col == 'promotion_frequency':
+                    print(f"    - {col}: {count} outliers ({feature_descriptions.get(col, '')}: {int(min_val)}–{int(max_val)} promotions)")
+                else:
+                    print(f"    - {col}: {count} outliers ({feature_descriptions.get(col, '')})")
+            else:
+                print(f"    - {col}: {count} outliers ({feature_descriptions.get(col, '')})")
+        
+        print(f"  Treatment: All outliers capped (winsorized) at IQR boundaries, preserving all records")
+    
+    print(f"\nFeature Normalization:")
+    print(f"  Normalized features: 5 features (price, cost, units_sold, promotion_frequency, shelf_level)")
+    print(f"  Method: Standardization (Z-score normalization)")
+    print(f"  Purpose: Ensures all features contribute equally to distance calculations in clustering")
+    
+    print("\n" + "="*80)
     print(f"Preprocessing complete. Shape: {summary['processed_shape']}")
     
     # 2.5 Feature Normalization

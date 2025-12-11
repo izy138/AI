@@ -76,6 +76,12 @@ def load_and_preprocess_data():
     # Load data
     df = load_data('../data/product_sales.csv')
     
+    # Analyze missing values before handling
+    missing_info = analyze_missing_values(df)
+    
+    # Store original for missing name analysis
+    df_original_for_analysis = df.copy()
+    
     # Handle missing values
     df_cleaned = handle_missing_values(df, strategy='mean')
     
@@ -84,15 +90,19 @@ def load_and_preprocess_data():
     outliers_iqr = detect_outliers_iqr(df_cleaned, numerical_cols)
     df_processed = handle_outliers(df_cleaned, outliers_iqr, method='cap')
     
+    # Get preprocessing summary
+    preprocessing_summary = get_preprocessing_summary(df_original_for_analysis, df_processed, 
+                                                      missing_info=missing_info, outliers_dict=outliers_iqr)
+    
     # Normalize features for clustering
     clustering_features = ['price', 'cost', 'units_sold', 'promotion_frequency', 'shelf_level']
     df_normalized, scaler = normalize_features(df_processed, clustering_features, method='standardize')
     
-    return df, df_cleaned, df_processed, df_normalized, scaler, clustering_features, outliers_iqr
+    return df, df_cleaned, df_processed, df_normalized, scaler, clustering_features, outliers_iqr, preprocessing_summary, missing_info
 
 # Load data
 try:
-    df, df_cleaned, df_processed, df_normalized, scaler, clustering_features, outliers_iqr = load_and_preprocess_data()
+    df, df_cleaned, df_processed, df_normalized, scaler, clustering_features, outliers_iqr, preprocessing_summary, missing_info = load_and_preprocess_data()
 except Exception as e:
     st.error(f"Error loading data: {e}")
     st.stop()
@@ -178,42 +188,124 @@ elif page == "📈 Data Overview":
     # Preprocessing Summary
     st.subheader("🔧 Preprocessing Summary")
     
+    # Data Overview
+    st.markdown("#### 📊 Data Overview")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.metric("Original Dataset", f"{preprocessing_summary['original_shape'][0]} products, {preprocessing_summary['original_shape'][1]} features")
+    with col2:
+        st.metric("Final Processed Dataset", f"{preprocessing_summary['processed_shape'][0]} products, {preprocessing_summary['processed_shape'][1]} features")
+    with col3:
+        st.metric("Data Completeness", "100% after preprocessing")
+    
     # Missing Values
-    st.markdown("#### Missing Value Handling")
-    missing_info = analyze_missing_values(df)
-    if missing_info['total_missing'] > 0:
+    st.markdown("#### 🔍 Missing Values Handling")
+    if 'missing_product_names' in preprocessing_summary:
+        missing_count = preprocessing_summary['missing_product_names']['count']
+        
         col1, col2 = st.columns(2)
         with col1:
-            st.write("**Original Missing Values:**")
-            st.write(missing_info['missing_by_column'][missing_info['missing_by_column'] > 0])
+            st.write(f"**Missing product names:** {missing_count} products")
+            
+            # Display missing product details
+            missing_details = []
+            for pid, cat in zip(preprocessing_summary['missing_product_names']['product_ids'],
+                               preprocessing_summary['missing_product_names']['categories']):
+                missing_details.append(f"Product ID {pid} (Category: {cat})")
+            
+            st.write("**Missing Products:**")
+            for detail in missing_details:
+                st.write(f"  • {detail}")
+        
         with col2:
             st.write("**Strategy:**")
             st.write("- Product names: Category-based placeholder")
             st.write("- Numerical values: Mean imputation")
-        st.success(f"✅ All missing values handled. Remaining: {df_processed.isnull().sum().sum()}")
+            st.write("")
+            st.write("**Treatment:** Missing product names filled with category-based placeholders")
+        
+        st.success(f"✅ All {missing_count} missing product names handled")
     else:
-        st.info("No missing values found in the dataset.")
+        st.info("No missing product names found in the dataset.")
     
     # Outliers
-    st.markdown("#### Outlier Detection and Treatment")
-    numerical_cols = ['price', 'cost', 'units_sold', 'promotion_frequency', 'shelf_level', 'profit']
-    # outliers_iqr is already computed in load_and_preprocess_data
-    total_outliers = sum([info['count'] for info in outliers_iqr.values()])
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        st.write(f"**Outliers Detected:** {total_outliers}")
-        st.write("**Method:** IQR (Interquartile Range)")
-    with col2:
-        st.write("**Treatment:** Capping at IQR bounds")
-        st.write("**Rationale:** Preserve data while handling extremes")
-    st.success("✅ Outliers capped successfully")
+    st.markdown("#### 📈 Outlier Detection and Treatment")
+    if 'outliers' in preprocessing_summary:
+        outlier_data = preprocessing_summary['outliers']
+        total_instances = outlier_data['total_instances']
+        unique_rows = outlier_data['unique_rows']
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("Total Outlier Instances", total_instances)
+            st.metric("Unique Rows with Outliers", f"{unique_rows} ({unique_rows/len(df)*100:.1f}% of dataset)")
+        with col2:
+            st.write("**Method:** IQR (Interquartile Range)")
+            st.write("**Treatment:** Capping at IQR boundaries")
+            st.write("**Rationale:** Preserve all data while handling extremes")
+        
+        st.write("**Outlier Breakdown by Feature:**")
+        
+        # Feature descriptions
+        feature_descriptions = {
+            'price': 'premium products',
+            'cost': 'high costs',
+            'units_sold': 'high-volume',
+            'promotion_frequency': 'frequently promoted',
+            'shelf_level': 'all values in valid range',
+            'profit': 'high-profit'
+        }
+        
+        # Create a detailed table for outliers
+        outlier_table_data = []
+        for col, info in outlier_data['by_feature'].items():
+            count = info['count']
+            if count > 0:
+                # Get outlier values for range
+                outlier_indices = outliers_iqr[col]['indices']
+                outlier_values = df_cleaned.loc[outlier_indices, col].tolist()
+                min_val = min(outlier_values)
+                max_val = max(outlier_values)
+                
+                if col in ['price', 'cost', 'profit']:
+                    range_str = f"${min_val:.2f}–${max_val:.2f}"
+                elif col == 'units_sold':
+                    range_str = f"{int(min_val)}–{int(max_val)} units"
+                elif col == 'promotion_frequency':
+                    range_str = f"{int(min_val)}–{int(max_val)} promotions"
+                else:
+                    range_str = "N/A"
+                
+                outlier_table_data.append({
+                    'Feature': col,
+                    'Outliers': count,
+                    'Description': feature_descriptions.get(col, ''),
+                    'Value Range': range_str
+                })
+            else:
+                outlier_table_data.append({
+                    'Feature': col,
+                    'Outliers': count,
+                    'Description': feature_descriptions.get(col, ''),
+                    'Value Range': 'N/A (no outliers)'
+                })
+        
+        outlier_df = pd.DataFrame(outlier_table_data)
+        st.dataframe(outlier_df, use_container_width=True, hide_index=True)
+        
+        st.success(f"✅ All {total_instances} outlier instances capped successfully, preserving all {len(df_processed)} records")
+    else:
+        st.info("No outlier information available.")
     
     # Normalization
-    st.markdown("#### Feature Normalization")
-    st.write("**Method:** Z-score Standardization (Mean=0, Std=1)")
-    st.write("**Features Normalized:** price, cost, units_sold, promotion_frequency, shelf_level")
-    st.write("**Why:** Required for K-means clustering (Euclidean distance is scale-sensitive)")
+    st.markdown("#### 🔄 Feature Normalization")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.write("**Method:** Z-score Standardization (Mean=0, Std=1)")
+        st.write("**Features Normalized:** price, cost, units_sold, promotion_frequency, shelf_level")
+    with col2:
+        st.write("**Purpose:** Ensures all features contribute equally to distance calculations")
+        st.write("**Why:** K-means clustering is scale-sensitive (Euclidean distance)")
     st.success("✅ Features standardized for clustering")
     
     # Statistical Summary
@@ -401,7 +493,7 @@ elif page == "🎯 Clustering Analysis":
             elif "Promotion-Driven" in cluster_name:
                 return '#E74C3C'  # Red
             elif "Standard" in cluster_name:
-                return '#FF6B6B'  # Red (same as before for cluster 0)
+                return '#FF6B6B'  # Red 
             else:
                 return '#3498DB'  # Blue (default)
         

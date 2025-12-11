@@ -209,7 +209,7 @@ def normalize_features(df, columns, method='standardize'):
     return df_normalized, scaler
 
 
-def get_preprocessing_summary(df_original, df_processed):
+def get_preprocessing_summary(df_original, df_processed, missing_info=None, outliers_dict=None):
     """
     Generate summary statistics comparing original and processed data
     
@@ -219,6 +219,10 @@ def get_preprocessing_summary(df_original, df_processed):
         Original dataframe
     df_processed : DataFrame
         Processed dataframe
+    missing_info : dict, optional
+        Dictionary with missing value information from analyze_missing_values
+    outliers_dict : dict, optional
+        Dictionary with outlier information from detect_outliers_iqr
     
     Returns:
     --------
@@ -232,5 +236,36 @@ def get_preprocessing_summary(df_original, df_processed):
         'columns_removed': df_original.shape[1] - df_processed.shape[1]
     }
     
+    # Add missing values information if provided
+    if missing_info is not None:
+        summary['missing_values'] = missing_info
+        # Find missing product names specifically
+        if 'product_name' in df_original.columns:
+            missing_names = df_original[df_original['product_name'].isnull() | 
+                                      (df_original['product_name'].astype(str).str.strip() == '')]
+            if len(missing_names) > 0:
+                summary['missing_product_names'] = {
+                    'count': len(missing_names),
+                    'product_ids': missing_names['product_id'].tolist(),
+                    'categories': missing_names['category'].tolist() if 'category' in missing_names.columns else []
+                }
+    
+    # Add outlier information if provided
+    if outliers_dict is not None:
+        total_outliers = sum([info['count'] for info in outliers_dict.values()])
+        unique_outlier_rows = set()
+        for col, info in outliers_dict.items():
+            unique_outlier_rows.update(info['indices'])
+        
+        summary['outliers'] = {
+            'total_instances': total_outliers,
+            'unique_rows': len(unique_outlier_rows),
+            'by_feature': {col: {'count': info['count'], 
+                                 'lower_bound': info.get('lower_bound', None),
+                                 'upper_bound': info.get('upper_bound', None)}
+                          for col, info in outliers_dict.items()}
+        }
+    
     return summary
+
 

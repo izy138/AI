@@ -1,0 +1,12 @@
+{
+  "name": "tic-tac-toe-ai",
+  "version": "1.0.0",
+  "description": "Tic-Tac-Toe with Minimax and Alpha-Beta Pruning",
+  "scripts": {
+    "dev": "npx serve .",
+    "start": "npx serve ."
+  },
+  "keywords": ["tic-tac-toe", "minimax", "alpha-beta"],
+  "author": "",
+  "license": "ISC"
+}

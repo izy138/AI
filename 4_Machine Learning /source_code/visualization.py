@@ -171,3 +171,4 @@ def plot_residuals(y_test, y_pred, model_name, save_path=None):
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
     plt.show()
 
+
